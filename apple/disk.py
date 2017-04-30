@@ -315,8 +315,5 @@ class DiskDos33:
 
         total_sectors = self._total_tracks * self._sector_per_track
         total_free_sector = total_sectors - total_used_sector
-        # print('Total used:', total_used_sector)
-        # print('Total free:', total_free_sector)
         percent = (total_used_sector / total_sectors) * 100
-        # print('{}% used'.format(percent))
         print('--- Sectors Used: {} ({:.0f}%) --- Free: {} ---'.format(total_used_sector, percent, total_free_sector))
