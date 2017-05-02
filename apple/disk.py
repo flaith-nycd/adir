@@ -9,7 +9,7 @@ from array import array
 import os
 
 __author__ = 'Nicolas Djurovic'
-__version__ = '0.7'
+__version__ = '0.8'
 
 
 class DiskfileError(Exception):
@@ -23,7 +23,7 @@ class DiskfileError(Exception):
     def __str__(self):
         return "The disk file \"{}\" {} !".format(self._diskfile, self._message)
 
-    
+
 class Disk:
     def __init__(self, diskname):
         # Keep the name of our disk
@@ -73,10 +73,10 @@ class Disk:
         if byte_to_read is None:
             byte_to_read = self._sector_size
 
-        position = (track * self._sector_size * self._sector_per_track) + (sector * self._sector_size)
+        position = (int(track) * self._sector_size * self._sector_per_track) + (int(sector) * self._sector_size)
 
         if position < self._disksize_raw:
-            result = self._memdisk[position:position + byte_to_read]  # .tolist()
+            result = self._memdisk[position:position + int(byte_to_read)]  # .tolist()
             return result
 
     # Convert byte to ascii
@@ -182,7 +182,6 @@ class DiskDos33(Disk):
         # is equal to the computed size (_disksize) returned from the VTOC
         if self._disksize_raw != self._disksize:
             raise DiskfileError(self._diskname, 'is not a valid disk, the size is {}'.format(self._disksize_raw))
-
 
     def _read_vtoc(self):
         # Reading the VTOC will give us:
