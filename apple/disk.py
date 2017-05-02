@@ -12,6 +12,18 @@ __author__ = 'Nicolas Djurovic'
 __version__ = '0.7'
 
 
+class DiskfileError(Exception):
+    """Exception constructor"""
+
+    def __init__(self, diskfile, message):
+        self._diskfile = diskfile
+        self._message = message
+
+    # Will be used when an exception will occur
+    def __str__(self):
+        return "The disk file \"{}\" {} !".format(self._diskfile, self._message)
+
+    
 class Disk:
     def __init__(self, diskname):
         # Keep the name of our disk
@@ -80,18 +92,6 @@ class Disk:
             else:
                 result.append('.')
         return result
-
-
-class DiskfileError(Exception):
-    """Exception constructor"""
-
-    def __init__(self, diskfile, message):
-        self._diskfile = diskfile
-        self._message = message
-
-    # Will be used when an exception will occur
-    def __str__(self):
-        return "The disk file \"{}\" {} !".format(self._diskfile, self._message)
 
 
 class DiskBin(Disk):
@@ -183,20 +183,6 @@ class DiskDos33(Disk):
         if self._disksize_raw != self._disksize:
             raise DiskfileError(self._diskname, 'is not a valid disk, the size is {}'.format(self._disksize_raw))
 
-    # This property is not used in the progra,m it's just here to see how to use array
-    #
-    # buffer_info() return a tuple (address, length) giving the current memory address and the length in elements of the
-    # buffer used to hold array’s contents. The size of the memory buffer in bytes can be computed as
-    # array.buffer_info()[1] * array.itemsize.
-    #
-    # This is occasionally useful when working with low-level (and inherently unsafe) I/O interfaces that require
-    # memory addresses, such as certain ioctl() operations.
-    # The returned numbers are valid as long as the array exists and no length-changing operations are applied to it.
-    #
-    # ex: print('Buffer info :', dsk.memdisk.buffer_info())
-    @property
-    def memsize(self):
-        return self._memdisk.buffer_info()[1] * self._memdisk.itemsize
 
     def _read_vtoc(self):
         # Reading the VTOC will give us:
