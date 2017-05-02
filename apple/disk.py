@@ -1,54 +1,85 @@
 """
 Apple II Disk Image Reader
-Read CATALOG of a dsk
 
-* Catalog Sector Format
-00    - Not used
-01    - Track number of next catalog sector (usually $11)
-02    - Sector number of next catalog sector
-03-0A - Not used
-0B-2D - First File Description Entry
-2E-50 - Second File Description Entry
-51-73 - Third File Description Entry
-74-96 - Fourth File Description Entry
-97-B9 - Fifth File Description Entry
-BA-DC - Sixth File Description Entry
-DD-FF - Seventh File Description Entry
-
-* File Descriptive Entry format
-00    - Track of first track/sector list sector
-        if this is a deleted file, the byte contains a hex
-        $FF and the original track number is copied to the
-        last byte of the file name field (Byte $20)
-        If this byte contains a hex $00, the entry is assumed
-        to never have been used and is available for use.
-        (This means track $00 can never be used for data even
-        if the DOS image is "wiped" from the diskette.)
-01    - Sector of first track/sector list sector
-02    - File Type and Flag :
-            hex 80 + file type  -> file is locked
-                00 + file type  -> file is not locked
-                00 -> TEXT file
-                01 -> INTEGER BASIC file
-                02 -> APPLESOFT BASIC file
-                04 -> BINARY file
-                08 -> S type file
-                10 -> RELOCATABLE object module file
-                20 -> A type file
-                40 -> B type file
-            (thus, 84 is a locked BINARY file , and 90 is a
-            locked R type file)
-03-20 - File name (30 characters)
-21-22 - Length of file in sectors (LO/HI format).
-        The CATALOG command will only format the LO byte of
-        this length giving 1-255 but a full 65535 may be
-        stored here.
+- Class Disk is the main class
+- DiskBin: child class for disk without a VTOC and only used to read Track/Sector
+- DiskDoss33: child class for Dos disk with a catalog 
 """
 from array import array
 import os
 
 __author__ = 'Nicolas Djurovic'
-__version__ = '0.6'
+__version__ = '0.7'
+
+
+class Disk:
+    def __init__(self, diskname):
+        # Keep the name of our disk
+        self._diskname = diskname
+
+        # and init its size to 0
+        self._disksize_raw = 0
+
+        # Init memory for the disk
+        # the size will be given by the disk size
+        self._memdisk = array('B')
+
+        # Number of tracks (usually 35)
+        self._total_tracks = 35
+
+        # Default sector size
+        self._sector_size = 256
+
+        # Default total sector per track
+        self._sector_per_track = 16
+
+        # Load our disk in memory
+        self._load()
+
+    # Return the real size of the file
+    # to be used with the _load method
+    def _get_file_size(self):
+        try:
+            return os.stat(self._diskname).st_size
+        except:
+            raise DiskfileError(self._diskname, 'not found')
+
+    # Load the disk file in the array
+    def _load(self):
+        with open(self._diskname, 'rb') as diskfile:
+            # _memdisk is an array, so we use array method 'fromfile'
+            # to load and populate our array with the real size
+            # of the file
+            self._disksize_raw = self._get_file_size()
+            self._memdisk.fromfile(diskfile, self._disksize_raw)
+
+    # Get part of the memory corresponding of the
+    # track/sector and how many byte to read
+    def read_ts(self, track=0, sector=0, byte_to_read=None):
+        result = []
+
+        if byte_to_read is None:
+            byte_to_read = self._sector_size
+
+        position = (track * self._sector_size * self._sector_per_track) + (sector * self._sector_size)
+
+        if position < self._disksize_raw:
+            result = self._memdisk[position:position + byte_to_read]  # .tolist()
+            return result
+
+    # Convert byte to ascii
+    # we don't use the object itself at all, so declare it as static
+    @staticmethod
+    def byte2ascii(data):
+        result = []
+        for char in data:
+            if char in range(32, 128):  # Check from ascii code $20 to $7E
+                result.append(chr(char))
+            elif char in range(160, 255):  # if between $A0 to $FE
+                result.append(chr(char - 128))  # Substract $80 to go back between $20 to $7E
+            else:
+                result.append('.')
+        return result
 
 
 class DiskfileError(Exception):
@@ -63,8 +94,59 @@ class DiskfileError(Exception):
         return "The disk file \"{}\" {} !".format(self._diskfile, self._message)
 
 
-class DiskDos33:
-    """Specified class for a DOS disk """
+class DiskBin(Disk):
+    def __init__(self, diskname):
+        # Init with the mother class
+        Disk.__init__(self, diskname)
+
+
+class DiskDos33(Disk):
+    """Specified class for a DOS disk
+    
+    To get the CATALOG of a dsk, we need to know:
+
+    * Catalog Sector Format
+    00    - Not used
+    01    - Track number of next catalog sector (usually $11)
+    02    - Sector number of next catalog sector
+    03-0A - Not used
+    0B-2D - First File Description Entry
+    2E-50 - Second File Description Entry
+    51-73 - Third File Description Entry
+    74-96 - Fourth File Description Entry
+    97-B9 - Fifth File Description Entry
+    BA-DC - Sixth File Description Entry
+    DD-FF - Seventh File Description Entry
+
+    * File Descriptive Entry format
+    00    - Track of first track/sector list sector
+            if this is a deleted file, the byte contains a hex
+            $FF and the original track number is copied to the
+            last byte of the file name field (Byte $20)
+            If this byte contains a hex $00, the entry is assumed
+            to never have been used and is available for use.
+            (This means track $00 can never be used for data even
+            if the DOS image is "wiped" from the diskette.)
+    01    - Sector of first track/sector list sector
+    02    - File Type and Flag :
+                hex 80 + file type  -> file is locked
+                    00 + file type  -> file is not locked
+                    00 -> TEXT file
+                    01 -> INTEGER BASIC file
+                    02 -> APPLESOFT BASIC file
+                    04 -> BINARY file
+                    08 -> S type file
+                    10 -> RELOCATABLE object module file
+                    20 -> A type file
+                    40 -> B type file
+                (thus, 84 is a locked BINARY file , and 90 is a
+                locked R type file)
+    03-20 - File name (30 characters)
+    21-22 - Length of file in sectors (LO/HI format).
+            The CATALOG command will only format the LO byte of
+            this length giving 1-255 but a full 65535 may be
+            stored here.
+    """
 
     # Create a dictionnary for the VTOC
     _vtoc = {}
@@ -76,18 +158,8 @@ class DiskDos33:
     _vtoc_total_sectors = 16
 
     def __init__(self, diskname):
-        # Keep the name of our disk
-        self._diskname = diskname
-
-        # and init its size to 0
-        self._disksize_raw = 0
-
-        # Init memory for the disk
-        # the size will be given by the disk size
-        self._memdisk = array('B')
-
-        # Load our disk in memory
-        self._load()
+        # Init with the mother class
+        Disk.__init__(self, diskname)
 
         # To get our catalog, we will need to read the VTOC
         self._read_vtoc()
@@ -111,23 +183,6 @@ class DiskDos33:
         if self._disksize_raw != self._disksize:
             raise DiskfileError(self._diskname, 'is not a valid disk, the size is {}'.format(self._disksize_raw))
 
-    # Return the real size of the file
-    # to be used with the _load method
-    def _get_file_size(self):
-        try:
-            return os.stat(self._diskname).st_size
-        except:
-            raise DiskfileError(self._diskname, 'not found')
-
-    # Load the disk file in the array
-    def _load(self):
-        with open(self._diskname, 'rb') as diskfile:
-            # _memdisk is an array, so we use array method 'fromfile'
-            # to load and populate our array with the real size
-            # of the file
-            self._disksize_raw = self._get_file_size()
-            self._memdisk.fromfile(diskfile, self._disksize_raw)
-
     # This property is not used in the progra,m it's just here to see how to use array
     #
     # buffer_info() return a tuple (address, length) giving the current memory address and the length in elements of the
@@ -142,34 +197,6 @@ class DiskDos33:
     @property
     def memsize(self):
         return self._memdisk.buffer_info()[1] * self._memdisk.itemsize
-
-    # Convert byte to ascii
-    # we don't use the object itself at all, so declare it as static
-    @staticmethod
-    def _byte2ascii(data):
-        result = []
-        for char in data:
-            if char in range(32, 128):  # Check from ascii code $20 to $7E
-                result.append(chr(char))
-            elif char in range(160, 255):  # if between $A0 to $FE
-                result.append(chr(char - 128))  # Substract $80 to go back between $20 to $7E
-            else:
-                result.append('.')
-        return result
-
-    # Get part of the memory corresponding of the
-    # track/sector and how many byte to read
-    def _read_ts(self, track=0, sector=0, byte_to_read=None):
-        result = []
-
-        if byte_to_read is None:
-            byte_to_read = self._sector_size
-
-        position = (track * self._sector_size * self._sector_per_track) + (sector * self._sector_size)
-
-        if position < self._disksize:
-            result = self._memdisk[position:position + byte_to_read]  # .tolist()
-        return result
 
     def _read_vtoc(self):
         # Reading the VTOC will give us:
@@ -248,7 +275,7 @@ class DiskDos33:
         # Get the filenames from each sector and set the next sector
         while next_sector != 0x00:
             # Get a list from read_ts method
-            cat_sector = self._read_ts(next_track, next_sector)
+            cat_sector = self.read_ts(next_track, next_sector)
 
             # we only need the next sector, but maybe the track has been changed
             next_track = cat_sector[1]
@@ -286,7 +313,7 @@ class DiskDos33:
 
                 # Generated the filename as a string from the list
                 # Convert to ascii, join the list to a string and strip it
-                fname = ''.join(self._byte2ascii(filename)).strip()
+                fname = ''.join(self.byte2ascii(filename)).strip()
 
                 # Add the infos extracted to our dictionnary
                 dict_program[dict_index] = [fname, file_length, track_file, sector_file, type_file]
@@ -309,11 +336,14 @@ class DiskDos33:
                 if track_file == 0xFF:  # File is deleted
                     print('{:30} [deleted]'.format(fname))
                 else:
-                    print('{:30} {:3d} T:${:02X} S:{:02X} TYPE:{}'.format(
-                        fname, file_length, track_file, sector_file, type_file
+                    print('{:30} {:3d} T:${:02X}({:02d}) S:{:02X}({:02d}) TYPE:{}'.format(
+                        fname, file_length, track_file, track_file, sector_file, sector_file, type_file
                     ))
 
         total_sectors = self._total_tracks * self._sector_per_track
         total_free_sector = total_sectors - total_used_sector
-        percent = (total_used_sector / total_sectors) * 100
-        print('--- Sectors Used: {} ({:.0f}%) --- Free: {} ---'.format(total_used_sector, percent, total_free_sector))
+        # print('Total used:', total_used_sector)
+        # print('Total free:', total_free_sector)
+        percent = total_used_sector / total_sectors  # * 100
+        # print('{}% used'.format(percent))
+        print('--- Sectors Used: {} ({:.0%}) --- Free: {} ---'.format(total_used_sector, percent, total_free_sector))
