@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from apple.disk import *
 from sys import argv, exit
+from apple.disk import *
 
 
 def show_catalog(diskfile):
@@ -10,7 +10,7 @@ def show_catalog(diskfile):
         print('Cannot execute without a disk filename !!!')
         exit()
 
-    print('--- CATALOG OF {} ...'.format(diskfile))
+    print('--- CATALOG OF {}:'.format(diskfile))
     dsk = DiskDos33(diskfile)
     dsk.catalog()
 
