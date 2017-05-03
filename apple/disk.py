@@ -4,12 +4,36 @@ Apple II Disk Image Reader
 - Class Disk is the main class
 - DiskBin: child class for disk without a VTOC and only used to read Track/Sector
 - DiskDoss33: child class for Dos disk with a catalog 
+
+TODO: - PRODOS
+      - NIB format (http://boutillon.free.fr/Underground/Cours/Nibbles/Nibbles.html)
+        Le .NIB permet de gérer ces disquettes au format non standardisé.
+
+        Le .DSK est rangé bien proprement. Les secteurs se suivent dans l'ordre et tout est pour le mieux dans 
+        le meilleur des mondes.
+        Dans la pratique, sur un vrai Apple II, quand la tête de lecture commence à lire une piste concentrique, 
+        elle peut tomber n'importe où. Par exemple sur le secteur $0D.
+        De la même façon, le format .NIB n'impose pas d'ordre des secteurs.
+        
+        Il se contente en effet de définir pour chaque piste une taille identique de 6656 octets, soit $1A00 en hexa.
+        Après on met ce qu'on veut dans chacun de ces espaces représentant une piste.
+        
+        Le .NIB est donc une succession d'espaces fixes de 6656 octets de long. Cette définition de taille fixe sert 
+        surtout à ne pas rendre trop compliquée l'exploitation du .NIB en l'organisant un minimum (découpage piste).
+        Comme un .NIB contient lui aussi 35 pistes et a donc 35*6656 = 232960 octets, soit une taille de 62,5% plus 
+        importante que le .DSK.
+        Note: si un jour vous rencontrez un .NIB de 266240 octets, il s'agit d'une image de 40 pistes.
+        
+        // Taille d'une piste du .nib
+        static int TRACK_SIZE = 0x1a00;
+        // Nombre de nibbles correspondant à 1 secteur complet du .dsk
+        static int SECTOR_SIZE = 409;
 """
 from array import array
 import os
 
 __author__ = 'Nicolas Djurovic'
-__version__ = '0.8'
+__version__ = '0.9'
 
 
 class DiskfileError(Exception):
@@ -45,6 +69,10 @@ class Disk:
         # Default total sector per track
         self._sector_per_track = 16
 
+        # Default track/sector, so we can return the values
+        self.track = 0x00
+        self.sector = 0x00
+
         # Load our disk in memory
         self._load()
 
@@ -73,7 +101,16 @@ class Disk:
         if byte_to_read is None:
             byte_to_read = self._sector_size
 
-        position = (int(track) * self._sector_size * self._sector_per_track) + (int(sector) * self._sector_size)
+        # If there is no sector number
+        # we're reading the whole track
+        if sector is None:
+            sector = 0  # But we need to give a number for the position
+            byte_to_read = self._sector_size * self._sector_per_track
+
+        position = (int(track) * self._sector_size * self._sector_per_track) + \
+                   (int(sector) * self._sector_size)
+        self.track = track
+        self.sector = sector
 
         if position < self._disksize_raw:
             result = self._memdisk[position:position + int(byte_to_read)]  # .tolist()
@@ -327,8 +364,5 @@ class DiskDos33(Disk):
 
         total_sectors = self._total_tracks * self._sector_per_track
         total_free_sector = total_sectors - total_used_sector
-        # print('Total used:', total_used_sector)
-        # print('Total free:', total_free_sector)
-        percent = total_used_sector / total_sectors  # * 100
-        # print('{}% used'.format(percent))
+        percent = total_used_sector / total_sectors
         print('--- Sectors Used: {} ({:.0%}) --- Free: {} ---'.format(total_used_sector, percent, total_free_sector))
