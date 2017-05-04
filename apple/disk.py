@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Apple II Disk Image Reader
 
