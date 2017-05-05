@@ -10,7 +10,6 @@ def show_catalog(diskfile):
         print('Cannot execute without a disk filename !!!')
         exit()
 
-    print('--- CATALOG OF {}:'.format(diskfile))
     dsk = DiskDos33(diskfile)
     dsk.catalog()
 
