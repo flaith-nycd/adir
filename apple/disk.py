@@ -34,7 +34,7 @@ from array import array
 import os
 
 __author__ = 'Nicolas Djurovic'
-__version__ = '0.9'
+__version__ = '0.10'
 
 
 class DiskfileError(Exception):
@@ -59,7 +59,11 @@ class Disk:
 
         # Init memory for the disk
         # the size will be given by the disk size
-        self._memdisk = array('B')
+        self.memdisk = array('B')
+
+        # Default track/sector, so we can return the values
+        self.track = 0x00
+        self.sector = 0x00
 
         # Number of tracks (usually 35)
         self._total_tracks = 35
@@ -69,10 +73,6 @@ class Disk:
 
         # Default total sector per track
         self._sector_per_track = 16
-
-        # Default track/sector, so we can return the values
-        self.track = 0x00
-        self.sector = 0x00
 
         # Load our disk in memory
         self._load()
@@ -88,11 +88,11 @@ class Disk:
     # Load the disk file in the array
     def _load(self):
         with open(self._diskname, 'rb') as diskfile:
-            # _memdisk is an array, so we use array method 'fromfile'
+            # memdisk is an array, so we use array method 'fromfile'
             # to load and populate our array with the real size
             # of the file
             self._disksize_raw = self._get_file_size()
-            self._memdisk.fromfile(diskfile, self._disksize_raw)
+            self.memdisk.fromfile(diskfile, self._disksize_raw)
 
     # Get part of the memory corresponding of the
     # track/sector and how many byte to read
@@ -114,7 +114,7 @@ class Disk:
         self.sector = sector
 
         if position < self._disksize_raw:
-            result = self._memdisk[position:position + int(byte_to_read)]  # .tolist()
+            result = self.memdisk[position:position + int(byte_to_read)]  # .tolist()
             return result
 
     # Convert byte to ascii
@@ -206,6 +206,9 @@ class DiskDos33(Disk):
         self._first_catalog_track = self._vtoc['first_catalog_track']
         self._first_catalog_sector = self._vtoc['first_catalog_sector']
 
+        # Disk Volume
+        self._disk_volume = self._vtoc['disk_volume']
+
         # Number of tracks (usually 35)
         self._total_tracks = self._vtoc['total_tracks']
         # Number of sector per track (13 or 16)
@@ -237,12 +240,12 @@ class DiskDos33(Disk):
             # So we're using usual values
             position = (self._vtoc_track * self._vtoc_sector_size * self._vtoc_total_sectors) + \
                        (self._vtoc_sector * self._vtoc_sector_size)
-            cat_vtoc = self._memdisk[position:position + self._vtoc_sector_size]
+            cat_vtoc = self.memdisk[position:position + self._vtoc_sector_size]
 
             self._vtoc['first_catalog_track'] = cat_vtoc[0x01]
             self._vtoc['first_catalog_sector'] = cat_vtoc[0x02]
             self._vtoc['dos_release'] = cat_vtoc[0x03]
-            self._vtoc['disk_volume'] = cat_vtoc[0x04]
+            self._vtoc['disk_volume'] = cat_vtoc[0x06]
             self._vtoc['total_tracks'] = cat_vtoc[0x34]
             self._vtoc['sector_per_track'] = cat_vtoc[0x35]
             # Get LOW byte of the sector size
@@ -256,31 +259,6 @@ class DiskDos33(Disk):
             raise DiskfileError(self._diskname, 'cannot read VTOC, not a DOS disk !!!')
 
     def catalog(self):
-        """
-            00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F
-            -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-        00: 00 11 07 00 00 00 00 00 00 00 00 FF 0B 02 D0 C9  ..............PI
-        10: D8 DF D6 B2 A0 A0 A0 A0 A0 A0 A0 A0 A0 A0 A0 A0  X_V2            
-        20: A0 A0 A0 A0 A0 A0 A0 A0 A0 A0 A0 A0 02 00 FF 09              ....
-        30: 04 D3 C8 C5 D2 D7 CF CF C4 A0 A0 A0 A0 A0 A0 A0  .SHERWOOD       
-        40: A0 A0 A0 A0 A0 A0 A0 A0 A0 A0 A0 A0 A0 A0 A0 21                 !
-        50: 00 0C 09 04 CC CF C7 CF A0 A0 A0 A0 A0 A0 A0 A0  ....LOGO        
-        60: A0 A0 A0 A0 A0 A0 A0 A0 A0 A0 A0 A0 A0 A0 A0 A0                  
-                        +------- $FF, file is deleted
-                        !        get the 29th byte to get
-                        !        where was the previous
-                        v        track (here it's [1D])
-        70: A0 A0 21 00 FF 0C 04 D6 C9 C5 D7 AE D3 C5 C3 D4    !....VIEW.SECT
-        80: CF D2 A0 A0 A0 A0 A0 A0 A0 A0 A0 A0 A0 A0 A0 A0  OR              
-        90: A0 A0 A0 A0[1D]03 00 00 00 00 00 00 00 00 00 00      ............
-        A0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-        B0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-        C0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-        D0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-        E0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-        F0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-        """
-
         # Get the first track and sector of our catalog
         next_track = self._first_catalog_track
         next_sector = self._first_catalog_sector
@@ -344,6 +322,10 @@ class DiskDos33(Disk):
                 # Increment our dictionnary index
                 dict_index += 1
 
+        # Display the header
+        print('DISK VOLUME {}'.format(self._disk_volume))
+        print('')
+
         # Read the ITEMS of the dictionnary to display the catalog
         for program in dict_program.items():
             # DON'T USE program[0], it's the index
@@ -353,17 +335,27 @@ class DiskDos33(Disk):
             sector_file = program[1][3]
             type_file = program[1][4]
 
+            if type_file == 0:
+                tfile = 'T'
+            elif type_file == 1:
+                tfile = 'I'
+            elif type_file == 2:
+                tfile = 'A'
+            elif type_file == 4:
+                tfile = 'B'
+            else:
+                tfile = type_file
+
             # if file_length <> 0, show catalog
             if file_length != 0:
                 # If Track of the current file is equal to $FF
                 if track_file == 0xFF:  # File is deleted
-                    print('{:30} [deleted]'.format(fname))
+                    print('>{} {:03d} {:<30s}<'.format(tfile, file_length, fname))
                 else:
-                    print('{:30} {:3d} T:${:02X}({:02d}) S:{:02X}({:02d}) TYPE:{}'.format(
-                        fname, file_length, track_file, track_file, sector_file, sector_file, type_file
-                    ))
+                    print(' {} {:03d} {:30}'.format(tfile, file_length, fname))
 
         total_sectors = self._total_tracks * self._sector_per_track
         total_free_sector = total_sectors - total_used_sector
         percent = total_used_sector / total_sectors
-        print('--- Sectors Used: {} ({:.0%}) --- Free: {} ---'.format(total_used_sector, percent, total_free_sector))
+        print('')
+        print('Sectors free: {} '.format(total_free_sector))
