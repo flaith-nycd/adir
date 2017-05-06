@@ -6,27 +6,75 @@ python catalog.py adir_catalog.dsk
 ```
 Result:
 ```
---- CATALOG OF adir_catalog.dsk ...
-HELLO                            2 T:$13 S:0F TYPE:2
-ADIR-CATALOG                     2 T:$14 S:0F TYPE:2
-BY                               2 T:$15 S:0F TYPE:2
-NICOLAS DJUROVIC                 2 T:$16 S:0F TYPE:2
---- Sectors Used: 8 (1%) --- Free: 552 ---
+DISK VOLUME 254
+
+ A 002 HELLO
+ A 002 ADIR-CATALOG
+ A 002 BY
+ A 002 NICOLAS DJUROVIC
+
+Sectors free: 552
 ```
 
-Show you the filename, its size, the first track/sector where starts the filename in the disk
-and the type:
 ```
-hex 80 + file type  -> file is locked
-    00 + file type  -> file is not locked
-    00 -> TEXT file
-    01 -> INTEGER BASIC file
-    02 -> APPLESOFT BASIC file
-    04 -> BINARY file
-    08 -> S type file
-    10 -> RELOCATABLE object module file
-    20 -> A type file
-    40 -> B type file
-(thus, 84 is a locked BINARY file , and 90 is a
-locked R type file)
+python catalog.py Merlin-8-2.48.dsk                           
+```
+Result:
+```
+DISK VOLUME 254                                                 
+                                                                
+ A 004 HELLO                                                    
+ B 004 MERLIN                                                   
+ B 017 ASM.1                                                    
+ B 042 ASM.2                                                    
+ B 015 ED.16                                                    
+ B 015 ED                                                       
+ B 008 XREF                                                     
+ B 005 FORMATTER                                                
+ B 008 XREF A                                                   
+ B 025 KEYMAC.S                                                 
+ B 004 KEYMAC                                                   
+ T 008 T.MACRO LIBRARY                                          
+ T 002 T.SENDMSG                                                
+ T 005 T.FPMACROS                                               
+ B 003 MON.65C02                                                
+ B 018 SOURCEROR                                                
+ B 010 LABELS.S                                                 
+ B 006 LABELS                                                   
+ B 019 PRINTFILER.S                                             
+ B 003 PRINTFILER                                               
+ B 014 PI.START.S                                               
+ B 013 PI.MAIN.S                                                
+ B 005 PI.LOOK.S                                                
+ B 015 PI.DIV.S                                                 
+ B 009 PI.ADD.S                                                 
+ T 006 T.PI.MACS                                                
+ B 004 PI.START                                                 
+ B 003 PI.MAIN                                                  
+ B 002 PI.LOOK                                                  
+ B 003 PI.DIV                                                   
+ B 003 PI.ADD                                                   
+ B 007 APPLE PI                                                 
+ T 002 PI.NAMES                                                 
+ T 006 T.ROCKWELL MACROS                                        
+ T 005 T.PRDEC                                                  
+ T 004 T.OUTPUT                                                 
+ B 025 CLOCK.S                                                  
+ B 003 CLOCK.12                                                 
+ B 003 CLOCK.24                                                 
+ B 028 MAKE DUMP.S                                              
+ B 004 MAKE DUMP                                                
+ B 004 MERLIN.X                                                 
+ B 005 MERLIN.CORVUS                                            
+ B 004 MERLIN.CORVUS.X                                          
+ B 020 EDMAC.S                                                  
+ B 004 EDMAC                                                    
+ A 002 SENDMSG.TEST.FP                                          
+ T 005 SENDMSG.TEST.S                                           
+ B 002 SENDMSG.TEST                                             
+ A 004 MULTIPLY/DIVIDE DEMO                                     
+ B 012 M/D RTNS FOR BASIC.S                                     
+ B 002 M/D.OBJ                                                  
+                                                                
+Sectors free: 111                                               
 ```
