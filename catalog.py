@@ -4,6 +4,9 @@
 from sys import argv, exit
 from apple.disk import *
 
+__author__ = 'Nicolas Djurovic'
+__version__ = '0.6'
+
 
 def show_catalog(diskfile):
     if not diskfile:
