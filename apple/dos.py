@@ -4,7 +4,7 @@
 from apple.disk import Disk, DiskfileError
 
 __author__ = 'Nicolas Djurovic'
-__version__ = '0.1'
+__version__ = '0.2'
 
 
 class DiskDos33(Disk):
