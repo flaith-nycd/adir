@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
+"""
+Some helpers used to display blocks or sectors
+"""
 
 __author__ = 'Nicolas Djurovic'
-__version__ = '0.1'
+__version__ = '0.2'
 
 BYTES_TO_DISPLAY = 16
 
