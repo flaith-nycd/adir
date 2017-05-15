@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Some helpers used to display blocks or sectors
+Some helpers
 """
 
 __author__ = 'Nicolas Djurovic'
